@@ -74,12 +74,11 @@ fn main() -> std::io::Result<()> {
             .db_name(Some(DATABASE_NAME));
 
         let pool = mysql::Pool::new(opts).unwrap();
-        pool.prep_exec(
+        pool.get_conn().unwrap().query(
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/sql/table_creation.sql"
             )),
-            (),
         )
         .unwrap();
 
@@ -92,7 +91,7 @@ fn main() -> std::io::Result<()> {
                 web::resource("").route(web::get().to(p404)).route(
                     web::route()
                         .guard(guard::Not(guard::Get()))
-                        .to(|| HttpResponse::MethodNotAllowed()),
+                        .to(HttpResponse::MethodNotAllowed),
                 ),
             )
     })
