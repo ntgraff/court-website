@@ -1,0 +1,16 @@
+[package]
+name = "data-backend"
+version = "0.1.0"
+authors = ["Noah Graff <noah@ntgg.io>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "1.0"
+actix-files = "0.1"
+actix-rt = "0.2"
+
+askama = "0.8"
+
+env_logger = "0.5"
+log = "0.4"
+mysql = "16"
