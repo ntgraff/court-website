@@ -1,39 +1,30 @@
-use log::info;
 use actix_files::NamedFile;
 use actix_web::get;
 use actix_web::{
     guard, http::StatusCode, middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use askama::Template;
+use log::{info, debug};
+use std::io::{Read, Write};
 
-#[derive(Template)]
-#[template(path = "index.html")]
-struct Index;
+mod templates;
+use templates::*;
 
-enum CourtKind {
-    Tennis,
-}
-
-#[derive(Template)]
-#[template(path = "court_overview.html")]
-struct CourtOverview {
-    name: String,
-    occupied: bool,
-    kind: String,
-}
+const DATABASE_NAME: &str = "neucourts";
 
 fn courts(pool: web::Data<mysql::Pool>, path: web::Path<(String,)>) -> Result<HttpResponse> {
     info!("courts path is: {:?}", path);
     let overviews = pool
-        .prep_exec("SELECT name, occupied, kind FROM courts", ())
+        .prep_exec("SELECT name, kind FROM courts", ())
         .map(|result| {
+            debug!("{:?}", result);
             result
                 .map(|x| x.unwrap())
                 .map(|row| {
-                    let (name, occupied, kind): (String, _, String) = mysql::from_row(row);
+                    let (name, kind) = mysql::from_row::<(String, String)>(row);
                     CourtOverview {
                         name,
-                        occupied,
+                        occupied: true,
                         kind,
                     }
                 })
@@ -57,15 +48,30 @@ fn p404() -> Result<NamedFile> {
 }
 
 fn main() -> std::io::Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("data-backend", log::LevelFilter::Debug)
+        .filter_module("actix_web", log::LevelFilter::Info)
+        .init();
+
     let sys = actix_rt::System::new("database-project");
 
-    HttpServer::new(|| {
+    let username = {
+        let mut username = String::new();
+        print!("Username: ");
+        let _ = std::io::stdout().flush();
+        let _ = std::io::stdin().read_line(&mut username);
+        username.trim().to_owned()
+    };
+    let password =
+        rpassword::prompt_password_stdout("Password: ").expect("not a valid password");
+
+    HttpServer::new(move || {
         let mut opts = mysql::OptsBuilder::new();
         opts.ip_or_hostname(Some("localhost"))
-            .user(Some("dbproj"))
-            .pass(Some("justanex"))
-            .db_name(Some("courtboi"));
+            .user(Some(username.clone()))
+            .pass(Some(password.clone()))
+            .db_name(Some(DATABASE_NAME));
 
         let pool = mysql::Pool::new(opts).unwrap();
         pool.prep_exec(
