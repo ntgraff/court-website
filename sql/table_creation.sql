@@ -1,20 +1,11 @@
 -- Table to hold court information
 CREATE TABLE IF NOT EXISTS courts (
-<<<<<<< HEAD
-	court_id INT NOT NULL AUTO_INCREMENT,
-	name VARCHAR(30) NOT NULL,
-	occupied BIT(1) NOT NULL DEFAULT 0,
-    expected_occupancy DATETIME DEFAULT NULL,
-	court_type VARCHAR(45) NOT NULL,
-	PRIMARY KEY (court_id)
-=======
     court_id           INT         NOT NULL AUTO_INCREMENT,
     name               VARCHAR(30) NOT NULL,
     occupied           INT         NOT NULL,
     expected_occupancy DATETIME,
     court_type         VARCHAR(45) NOT NULL,
     PRIMARY KEY (court_id)
->>>>>>> 05ad6cca64ae2e23501ae80d9a93409c563d7c8d
 );
 
 -- Table to hold user information
@@ -39,31 +30,22 @@ CREATE TABLE IF NOT EXISTS open_party (
 
 -- Table to hold scheduled events affiliated with the university
 CREATE TABLE IF NOT EXISTS scheduled_event (
-<<<<<<< HEAD
-	scheduled_event_id INT NOT NULL AUTO_INCREMENT,
-	event_name VARCHAR(255) NOT NULL,
-    scheduled_start_time DATETIME NOT NULL,
-    scheduled_end_time DATETIME NOT NULL,
-    court INT NOT NULL,
-	PRIMARY KEY (scheduled_event_id),
-	FOREIGN KEY (court) REFERENCES courts(court_id)
-);
-
--- Table to hold intended use of a court by an independent party
-CREATE TABLE IF NOT EXISTS intended_use (
-	intended_use_id INT NOT NULL AUTO_INCREMENT,
-	username VARCHAR(255) NOT NULL,
-    intended_end_time DATETIME NOT NULL,
-    court INT NOT NULL,
-	PRIMARY KEY (intended_use_id),
-    FOREIGN KEY (username) REFERENCES user(username),
-	FOREIGN KEY (court) REFERENCES courts(court_id)
-=======
     scheduled_event_id   INT          NOT NULL AUTO_INCREMENT,
     event_name           VARCHAR(255) NOT NULL,
     scheduled_start_time DATETIME     NOT NULL,
     scheduled_end_time   DATETIME     NOT NULL,
     court                INT          NOT NULL,
-    PRIMARY KEY (user_id)
->>>>>>> 05ad6cca64ae2e23501ae80d9a93409c563d7c8d
+    PRIMARY KEY (scheduled_event_id),
+    FOREIGN KEY (court) REFERENCES courts(court_id)
+);
+
+-- Table to hold intended use of a court by an independent party
+CREATE TABLE IF NOT EXISTS intended_use (
+    intended_use_id   INT          NOT NULL AUTO_INCREMENT,
+    username          VARCHAR(255) NOT NULL,
+    intended_end_time DATETIME     NOT NULL,
+    court             INT          NOT NULL,
+    PRIMARY KEY (intended_use_id),
+    FOREIGN KEY (username) REFERENCES user(username),
+    FOREIGN KEY (court) REFERENCES courts(court_id)
 );
