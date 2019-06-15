@@ -2,8 +2,8 @@
 CREATE TABLE IF NOT EXISTS courts (
 	court_id INT NOT NULL AUTO_INCREMENT,
 	name VARCHAR(30) NOT NULL,
-	occupied BIT(1) NOT NULL,
-    expected_occupancy DATETIME,
+	occupied BIT(1) NOT NULL DEFAULT 0,
+    expected_occupancy DATETIME DEFAULT NULL,
 	court_type VARCHAR(45) NOT NULL,
 	PRIMARY KEY (court_id)
 );
@@ -35,5 +35,17 @@ CREATE TABLE IF NOT EXISTS scheduled_event (
     scheduled_start_time DATETIME NOT NULL,
     scheduled_end_time DATETIME NOT NULL,
     court INT NOT NULL,
-	PRIMARY KEY (user_id)
+	PRIMARY KEY (scheduled_event_id),
+	FOREIGN KEY (court) REFERENCES courts(court_id)
+);
+
+-- Table to hold intended use of a court by an independent party
+CREATE TABLE IF NOT EXISTS intended_use (
+	intended_use_id INT NOT NULL AUTO_INCREMENT,
+	username VARCHAR(255) NOT NULL,
+    intended_end_time DATETIME NOT NULL,
+    court INT NOT NULL,
+	PRIMARY KEY (intended_use_id),
+    FOREIGN KEY (username) REFERENCES user(username),
+	FOREIGN KEY (court) REFERENCES courts(court_id)
 );
