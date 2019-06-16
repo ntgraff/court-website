@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS courts (
     name               VARCHAR(30) NOT NULL,
     occupied           INT         NOT NULL,
     expected_occupancy DATETIME,
-    court_type         VARCHAR(45) NOT NULL,
+    court_type         VARCHAR(100) NOT NULL,
     PRIMARY KEY (court_id)
 );
 
