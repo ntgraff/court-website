@@ -2,8 +2,6 @@
 CREATE TABLE IF NOT EXISTS courts (
     court_id           INT         NOT NULL AUTO_INCREMENT,
     name               VARCHAR(30) NOT NULL,
-    occupied           INT         NOT NULL,
-    expected_occupancy DATETIME,
     court_type         VARCHAR(100) NOT NULL,
     PRIMARY KEY (court_id)
 );
@@ -13,6 +11,12 @@ CREATE TABLE IF NOT EXISTS user (
     username VARCHAR(45) NOT NULL UNIQUE,
     password VARCHAR(30) NOT NULL,
     PRIMARY KEY (username)
+);
+
+-- Table to hold occupied
+CREATE TABLE IF NOT EXISTS courts (
+    court_id           INT         NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (court_id)
 );
 
 -- Table to hold all party requests
