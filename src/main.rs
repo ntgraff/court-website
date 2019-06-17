@@ -4,8 +4,9 @@ use actix_web::{
     guard, http::StatusCode, middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use askama::Template;
-use log::{debug, info};
+use log::{debug, info, trace};
 use mysql::params;
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::Path;
 
@@ -18,7 +19,7 @@ fn courts(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<HttpR
     info!("courts path is: {:?}", path);
     match pool
         .prep_exec(
-            "SELECT court_id, name, occupied, court_type FROM courts WHERE court_id = :court_id",
+            "SELECT court_id, name, court_type FROM courts WHERE court_id = :court_id",
             params! {
                 "court_id" => path.0
             },
@@ -27,11 +28,10 @@ fn courts(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<HttpR
             result
                 .map(|x| x.unwrap())
                 .map(|row| {
-                    let (_, name, occupied, kind) =
-                        mysql::from_row::<(u32, String, bool, String)>(row);
+                    let (_, name, kind) = mysql::from_row::<(u32, String, String)>(row);
                     CourtOverview {
                         name,
-                        occupied,
+                        occupied: false,
                         kind,
                     }
                 })
@@ -66,20 +66,16 @@ fn courts(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<HttpR
 fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
     let courts = {
         let courts = pool
-            .prep_exec(
-                "SELECT court_id, name, occupied, expected_occupancy, court_type FROM courts",
-                (),
-            )
+            .prep_exec("SELECT court_id, name, court_type FROM courts", ())
             .unwrap()
             .map(|x| x.unwrap())
             .map(|row| {
-                let (id, name, occupied, expected_occupancy, court_kind) =
-                    mysql::from_row::<(u32, String, bool, Option<String>, String)>(row);
+                let (id, name, court_kind) = mysql::from_row::<(u32, String, String)>(row);
                 CourtInfo {
                     id,
                     name,
-                    occupied,
-                    expected_occupancy,
+                    occupied: true,
+                    expected_occupancy: None,
                     court_kind,
                 }
             })
@@ -101,10 +97,88 @@ fn p404() -> Result<NamedFile> {
     Ok(NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
 }
 
+fn plogin() -> Result<NamedFile> {
+    Ok(NamedFile::open("static/login.html")?.set_status_code(StatusCode::OK))
+}
+
+#[derive(Serialize, Deserialize)]
+struct Login {
+    username: String,
+    password: String,
+}
+
+fn login_post(pool: web::Data<mysql::Pool>, content: web::Form<Login>) -> HttpResponse {
+    trace!("login request");
+    let stored_pass = pool
+        .prep_exec(
+            "SELECT password FROM users WHERE username = :username",
+            params! {"username" => &content.username},
+        )
+        .map(|result| {
+            result
+                .map(|x| x.unwrap())
+                .map(mysql::from_row::<(String,)>)
+                .take(1)
+                .collect::<Vec<_>>()
+                .clone()
+        });
+    match stored_pass {
+        Ok(ref pass) if pass.len() > 0 && pass[0].0 == content.password => HttpResponse::Found()
+            .header(actix_web::http::header::LOCATION, "/")
+            .finish(),
+        _ => HttpResponse::UnprocessableEntity().body("not a valid login"),
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct Register {
+    username: String,
+    password1: String,
+    password2: String,
+}
+
+fn register_post(pool: web::Data<mysql::Pool>, content: web::Form<Register>) -> HttpResponse {
+    trace!("register request");
+    if content.password1 == content.password2 {
+        let mut transaction = pool.start_transaction(false, None, None).unwrap();
+        let already_exists = transaction
+            .prep_exec(
+                "SELECT COUNT(*) FROM users WHERE username = :username",
+                params! {"username" => &content.username},
+            )
+            .unwrap()
+            .map(|x| x.unwrap())
+            .map(mysql::from_row::<(u32,)>)
+            .take(1)
+            .collect::<Vec<_>>()[0]
+            .0
+            > 0;
+
+        if already_exists {
+            HttpResponse::BadRequest().body("User already exists!")
+        } else {
+            let _ = transaction.prep_exec(
+                "INSERT INTO users (username, password) VALUES (:username, :password)",
+                params! {
+                    "username" => &content.username,
+                    "password" => &content.password1
+                },
+            );
+            let _ = transaction.commit();
+            HttpResponse::Found()
+                .header(actix_web::http::header::LOCATION, "/")
+                .finish()
+                .into_body()
+        }
+    } else {
+        HttpResponse::BadRequest().body("Passwords do not match")
+    }
+}
+
 fn main() -> std::io::Result<()> {
     env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("data-backend", log::LevelFilter::Debug)
+        .filter_module("data_backend", log::LevelFilter::max())
         .filter_module("actix_web", log::LevelFilter::Info)
         .init();
 
@@ -112,12 +186,13 @@ fn main() -> std::io::Result<()> {
 
     let username = {
         let mut username = String::new();
-        print!("Username: ");
+        print!("MariaDB Username: ");
         let _ = std::io::stdout().flush();
         let _ = std::io::stdin().read_line(&mut username);
         username.trim().to_owned()
     };
-    let password = rpassword::prompt_password_stdout("Password: ").expect("not a valid password");
+    let password =
+        rpassword::prompt_password_stdout("MariaDB Password: ").expect("not a valid password");
 
     HttpServer::new(move || {
         let mut opts = mysql::OptsBuilder::new();
@@ -139,8 +214,19 @@ fn main() -> std::io::Result<()> {
             .data(pool)
             .wrap(middleware::Logger::default())
             .service(web::resource("/").route(web::get().to(home)))
+            .service(
+                web::resource("/login")
+                    .route(web::get().to(plogin))
+                    .route(web::post().to(login_post)),
+            )
+            .service(
+                web::resource("/register")
+                    .route(web::get().to(p404))
+                    .route(web::post().to(register_post)),
+            )
             .service(web::resource("/courts").route(web::get().to(courts_index)))
             .service(web::resource("/courts/{id}").route(web::get().to(courts)))
+            .service(actix_files::Files::new("/static", "./static"))
             .default_service(
                 web::resource("").route(web::get().to(p404)).route(
                     web::route()

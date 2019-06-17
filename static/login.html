@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="login form">
+        <meta name="author" content="Noah Graff and George Hosea">
+        <title>CS3200 | Login</title>
+        <link rel="stylesheet" href="/static/login.css">
+    </head>
+    <body>
+        <input type='checkbox' id='form-switch'>
+        <form id='login-form' action="/login" method='post'>
+            <input name="username" type="text" placeholder="Username" requried>
+            <input name="password" type="password" placeholder="Password" requried>
+            <button type="submit">Login</button>
+            <label for='form-switch'><span>Register</span></label>
+        </form>
+        <form id='register-form' action="/register" method='post'>
+            <input name="username" type="text" placeholder="Username" requried>
+            <input name="password1" type="password" placeholder="Password" requried>
+            <input name="password2" type="password" placeholder="Confirm Password" requried>
+            <button type="submit">Register</button>
+            <label for='form-switch'><span>Login</span></label>
+        </form>
+    </body>
+</html>
+
