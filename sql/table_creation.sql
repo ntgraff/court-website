@@ -2,14 +2,12 @@
 CREATE TABLE IF NOT EXISTS courts (
     court_id           INT         NOT NULL AUTO_INCREMENT,
     name               VARCHAR(30) NOT NULL,
-    occupied           INT         NOT NULL,
-    expected_occupancy DATETIME,
     court_type         VARCHAR(100) NOT NULL,
     PRIMARY KEY (court_id)
 );
 
--- Table to hold user information
-CREATE TABLE IF NOT EXISTS user (
+-- Table to hold users information
+CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(45) NOT NULL UNIQUE,
     password VARCHAR(30) NOT NULL,
     PRIMARY KEY (username)
@@ -24,7 +22,7 @@ CREATE TABLE IF NOT EXISTS open_party (
     court                INT         NOT NULL,
     intended_play_time   DATETIME    NOT NULL,
     PRIMARY KEY (party_id),
-    FOREIGN KEY (host) REFERENCES user(username),
+    FOREIGN KEY (host) REFERENCES users(username),
     FOREIGN KEY (court) REFERENCES courts(court_id)
 );
 
@@ -46,6 +44,14 @@ CREATE TABLE IF NOT EXISTS intended_use (
     intended_end_time DATETIME     NOT NULL,
     court             INT          NOT NULL,
     PRIMARY KEY (intended_use_id),
-    FOREIGN KEY (username) REFERENCES user(username),
+    FOREIGN KEY (username) REFERENCES users(username),
     FOREIGN KEY (court) REFERENCES courts(court_id)
+);
+
+CREATE TABLE IF NOT EXISTS expected_occupancy (
+    court_id       INT       NOT NULL,
+    occupied       INT       NOT NULL,
+    occupied_until DATETIME  NOT NULL,
+    PRIMARY KEY (court_id),
+    FOREIGN KEY (court_id) REFERENCES courts(court_id)
 );
