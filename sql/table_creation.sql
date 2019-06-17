@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (username)
 );
 
+-- Table to hold occupied
+CREATE TABLE IF NOT EXISTS courts (
+    court_id           INT         NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (court_id)
+);
+
 -- Table to hold all party requests
 CREATE TABLE IF NOT EXISTS open_party (
     party_id             INT         NOT NULL AUTO_INCREMENT,
