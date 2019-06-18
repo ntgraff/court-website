@@ -4,28 +4,35 @@ use askama::Template;
 #[template(path = "index.html")]
 pub struct Index;
 
-pub enum CourtKind {
-    Tennis,
+
+#[derive(Debug)]
+pub struct ReservationInfo {
+    pub id: u32,
+    pub username: String,
+    pub start: String,
+    pub end: String,
 }
 
 #[derive(Template)]
-#[template(path = "court_overview.html")]
+#[template(path = "court_info.html")]
+pub struct CourtInfo {
+    pub id: u32,
+    pub name: String,
+    pub occupied: bool,
+    pub reservations: Vec<ReservationInfo>,
+    pub kind: String,
+}
+
 pub struct CourtOverview {
+    pub id: u32,
     pub name: String,
     pub occupied: bool,
     pub kind: String,
 }
 
-pub struct CourtInfo {
-    pub id: u32,
-    pub name: String,
-    pub occupied: bool,
-    pub expected_occupancy: Option<String>,
-    pub court_kind: String,
-}
-
 #[derive(Template)]
 #[template(path = "all_courts.html")]
 pub struct AllCourts {
-    pub courts: Vec<CourtInfo>,
+    pub courts: Vec<CourtOverview>,
 }
+
