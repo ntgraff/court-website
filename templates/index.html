@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        {% block head %}
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="Court reservation system.">
-        <meta name="author" content="Noah Graff and George Hosea">
-        {% endblock %}
-        <title>{% block title %}CS3200 Project{% endblock %}</title>
-        {% block style %}<link rel="stylesheet" href="/main.css">{% endblock %}
-    </head>
-    <body>
-        <div id="content">
-            {% block content %}
-                <h1>CS3200 Project</h1>
-                <a href="/courts">View courts</a>
-            {% endblock %}
-        </div>
-    </body>
+  <head>
+      {% block head %}
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="description" content="Court reservation system.">
+      <meta name="author" content="Noah Graff and George Hosea">
+      {% endblock %}
+      <title>{% block title %}CS3200 Project{% endblock %}</title>
+      {% block style %}<link rel="stylesheet" href="/static/main.css">{% endblock %}
+  </head>
+  <body>
+    <div id="content">
+      {% block content %}
+        <h1>CS3200 Project</h1>
+          <ul class='links'
+            <li><a href="/courts">View courts</a></li>
+            <li><a href='/login'>Login</a></li>
+          </ul>
+      {% endblock %}
+    </div>
+  </body>
 </html>

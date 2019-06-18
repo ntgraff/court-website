@@ -1,25 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="Northeastern courts">
-        <meta name="author" content="Noah Graff and George Hosea">
-        <title>CS3200 Project | Courts</title>
-        <link rel="stylesheet" href="/main.css">
-    </head>
-    <body>
-        <h1>All Courts</h1>
-        <ul id="courts">
-        {% for court in courts %}
-            <li>
-                <h2>{{ court.name }}</h2>
-                <small> {% if court.occupied -%}un{%- endif %}available</small>
-                <small id='cout-kind'>{{ court.kind }}</small>
-                <a href="/courts/{{ court.id }}">view details</a>
-            </li>
-        {% endfor %}
-        </ul>
-    </body>
-</html>
-
+{% extends "index.html" %}
+{% block title %}All Courts{% endblock %}
+{% block content %}
+<h1>All Courts</h1>
+<ul id="courts">
+{% for court in courts %}
+  <li>
+    <h2>{{ court.name }}</h2>
+    <ul>
+      <li><small>{% if court.occupied -%}un{%- endif %}available</small></li>
+      <li><small id='cout-kind'>{{ court.kind }}</small></li>
+      <li><a href="/courts/{{ court.id }}">view details</a></li>
+    </ul>
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}
