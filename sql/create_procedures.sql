@@ -17,7 +17,7 @@ RETURNS BOOLEAN
 BEGIN
 	DECLARE used_count INT;
 	SELECT COUNT(reservation_id) INTO used_count
-	FROM intended_use
+	FROM reservations
 	WHERE court_id = cid AND start_time < NOW() AND end_time > NOW();
 	RETURN used_count <> 0;
 END ;;
@@ -30,7 +30,7 @@ DELIMITER ;;
 CREATE PROCEDURE court_reservations( cid INT )
 BEGIN
 	SELECT
-		intended_use_id,
+		reservation_id,
 		username,
 		CONVERT(start_time, VARCHAR(50)),
 		CONVERT(end_time, VARCHAR(50)),
@@ -42,6 +42,20 @@ BEGIN
 END ;;
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS  reservation_available_party;
+
+DELIMITER ;;
+CREATE PROCEDURE reservation_available_party( rid INT )
+BEGIN
+	DECLARE pid INT;
+	SET pid = NULL;
+	SELECT party_id INTO pid
+	FROM reservations
+	WHERE reservation_id = rid;
+	SELECT party_id, capacity, current
+	FROM parties
+	WHERE party_id = pid;
+END ;;
 -- A function that checks if a login was successful (username, password) -> boolean
 -- A function that checks if a user can register (username) -> boolean
 -- A procedure to register a user (username, password) => modify users table
