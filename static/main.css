@@ -3,7 +3,7 @@ body {
     padding: 0;
 }
 
-small {
+#content small {
     margin: 4px 0;
     font-size: 14px;
     font-weight: 600;
@@ -22,7 +22,15 @@ small {
 
 #content form {
     margin:0 0;
-    width:300px
+    display: block;
+}
+
+#content form * {
+    display: block;
+}
+
+#content * {
+    color: black;
 }
 
 #content {

@@ -27,9 +27,13 @@
     <h2>No Reservations</h2>
   {% endif %}
   <h3>Reserve This Court</h3>
-  <form id='reserve-form' action='/reserve-occupancy/{{ id }}' method='post'>
-    <input name='start-time' type='date'>
-    <input name='end-time' type='date'>
+  <form id='reserve-form' action='/reserve/{{ id }}' method='post'>
+    <label for='start'>Start</label>
+    <input name='start_date' type='date'>
+    <input name='start_time' id='start' type='time'>
+    <label for='end'>End</label>
+    <input name='end_date' type='date'>
+    <input name='end_time' id='end' type='time'>
     <input name='username' type='text' placeholder='Username'>
     <input name='password' type='password' placeholder='Password'>
     <button type='submit'>Submit</button>

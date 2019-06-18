@@ -2,9 +2,23 @@
 DROP PROCEDURE IF EXISTS add_reservation;
 
 DELIMITER ;;
-CREATE PROCEDURE add_reservation( cid INT, start DATETIME,  end DATETIME, username VARCHAR(45) )
+CREATE PROCEDURE add_reservation( cid INT, start DATETIME, end DATETIME, username VARCHAR(45) )
 BEGIN
 	INSERT INTO reservations (username, start_time, end_time, court_id) VALUES (username, start, end, cid);
+END ;;
+DELIMITER ;
+
+-- checks if there is a reservation between the times on that court
+DROP FUNCTION IF EXISTS can_reserve_between;
+DELIMITER ;;
+CREATE FUNCTION can_reserve_between( cid INT, start DATETIME, endt DATETIME )
+RETURNS BOOLEAN
+BEGIN
+	DECLARE resc_at_time INT;
+	SELECT COUNT(reservation_id) INTO resc_at_time
+	FROM reservations
+	WHERE court_id = cid AND (start_time BETWEEN start AND endt OR end_time BETWEEN start AND endt);
+	RETURN resc_at_time = 0;
 END ;;
 DELIMITER ;
 
@@ -52,6 +66,7 @@ BEGIN
 	SELECT party_id INTO pid
 	FROM reservations
 	WHERE reservation_id = rid;
+
 	SELECT party_id, capacity, current
 	FROM parties
 	WHERE party_id = pid;
@@ -59,34 +74,32 @@ END ;;
 DELIMITER ;
 
 -- A function that checks if a login was successful (username, password) -> TINYINT(1 IS TRUE, 0 IS FALSE)
-drop function if exists succesful_login;
+drop function if exists successful_login;
 
-DELIMITER //
+DELIMITER ;;
 
-CREATE FUNCTION succesful_login(un varchar(255), pw varchar(255)) RETURNS TINYINT(1) DETERMINISTIC
+CREATE FUNCTION successful_login(un varchar(255), pw varchar(255)) RETURNS BOOLEAN
 BEGIN
-	DECLARE num int;
-    SELECT count(*) into num FROM users WHERE username = un and password = pw;
-    return encounter;
-END //
-
+	DECLARE pass VARCHAR(255);
+	SELECT password INTO pass
+	FROM users
+	WHERE username = un;
+	RETURN pass = pw;
+END ;;
 DELIMITER ;
-
 
 -- A function that checks if a user can register (username) -> TINYINT(1 IS TRUE, 0 IS FALSE)
 drop function if exists available_username;
 
-DELIMITER //
-CREATE FUNCTION available_username(un varchar(255)) RETURNS TINYINT(1) DETERMINISTIC
+DELIMITER ;;
+CREATE FUNCTION available_username(un varchar(255)) RETURNS BOOLEAN
 BEGIN
-	DECLARE num int;
-    SELECT count(*) into num FROM users WHERE username = un;
-    if num = 1 then 
-		return 0; 
-    END IF;
-    return 1;
-END //
-
+	DECLARE users_with_name INT;
+	SELECT count(username) INTO users_with_name
+	FROM users
+	WHERE username = un;
+	RETURN users_with_name = 0;
+END ;;
 DELIMITER ;
 
 -- A procedure to register a user (username, password) => modify users table
@@ -97,14 +110,9 @@ CREATE PROCEDURE add_user(us VARCHAR(255), pw VARCHAR(255))
 BEGIN
 	INSERT INTO users(username, password) VALUES (us, pw);
 END ;;
+DELIMITER ;
 
 
--- One of those trigger things that removes a reservation when it is over maybe?
--- Maybe instead a function that deletes reservations for a specific time period
--- This way it can keep old records in case someone wants to check something
--- and easily delete old records when needed
--- idk
---   not sure if we need this one
 -- Add cascade stuff to the tables
 -- Maybe add more constraints to the tables? not sure.
 -- We will need a few more, but I don't know yet

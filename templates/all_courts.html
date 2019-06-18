@@ -9,7 +9,7 @@
     <ul>
       <li><small>{% if court.occupied -%}un{%- endif %}available</small></li>
       <li><small id='cout-kind'>{{ court.kind }}</small></li>
-      <li><a href="/courts/{{ court.id }}">view details</a></li>
+      <li><a href="/court/{{ court.id }}">view details</a></li>
     </ul>
   </li>
 {% endfor %}
