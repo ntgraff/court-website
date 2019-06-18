@@ -36,7 +36,7 @@ BEGIN
 		CONVERT(end_time, VARCHAR(50)),
 		court_id,
 		party_id
-	FROM intended_use
+	FROM reservations
 	WHERE court_id = cid AND end_time > NOW()
 	ORDER BY start_time DESC;
 END ;;
