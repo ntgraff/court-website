@@ -2,7 +2,7 @@
 DROP PROCEDURE IF EXISTS add_reservation;
 
 DELIMITER ;;
-CREATE PROCEDURE add_reservation( cid INT, start: DATETIME,  end DATETIME, username VARCHAR(45) )
+CREATE PROCEDURE add_reservation( cid INT, start DATETIME,  end DATETIME, username VARCHAR(45) )
 BEGIN
 	INSERT INTO reservations (username, start_time, end_time, court_id) VALUES (username, start, end, cid);
 END ;;
