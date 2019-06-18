@@ -56,6 +56,7 @@ BEGIN
 	FROM parties
 	WHERE party_id = pid;
 END ;;
+DELIMITER ;
 -- A function that checks if a login was successful (username, password) -> boolean
 -- A function that checks if a user can register (username) -> boolean
 -- A procedure to register a user (username, password) => modify users table
