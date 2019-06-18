@@ -101,10 +101,19 @@ fn courts(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<HttpR
                         .unwrap()
                         .map(Result::unwrap)
                         .map(|row| {
-                            let (id, username, start, end, _) =  mysql::from_row::<(u32, String, String, String, u32)>(row);
-                            let r = ReservationInfo { id, username, start, end };
-                            info!("{:?}", r);
-                            r
+                            let (id, username, start, end, _, party_id) =  mysql::from_row::<(u32, String, String, String, u32, Option<u32>)>(row);
+                            let party = pool
+                                .first_exec("CALL reservation_available_party(:pid)", params!("pid" => party_id))
+                                .unwrap()
+                                .map(|row| {
+                                    let (id, capacity, current) = mysql::from_row::<(u32, u32, u32)>(row);
+                                    PartyInfo {
+                                        id,
+                                        capacity,
+                                        current,
+                                    }
+                                });
+                            ReservationInfo { id, username, start, end, party }
                         })
                         .collect::<Vec<_>>();
                     CourtInfo {

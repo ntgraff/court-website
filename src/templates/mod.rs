@@ -4,6 +4,12 @@ use askama::Template;
 #[template(path = "index.html")]
 pub struct Index;
 
+#[derive(Debug)]
+pub struct PartyInfo {
+    pub id: u32,
+    pub capacity: u32,
+    pub current: u32,
+}
 
 #[derive(Debug)]
 pub struct ReservationInfo {
@@ -11,6 +17,7 @@ pub struct ReservationInfo {
     pub username: String,
     pub start: String,
     pub end: String,
+    pub party: Option<PartyInfo>,
 }
 
 #[derive(Template)]

@@ -1,35 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="404 error page">
-        <meta name="author" content="Noah Graff and George Hosea">
-        <title>CS3200 Project | Court {{ name }}</title>
-        <link rel="stylesheet" href="/main.css">
-    </head>
-    <body>
-        <h1>{{ name }}</h1>
-        <h2>This court is {% if occupied -%}un{%- endif %}available</h2>
-        <h2>Court Type</h2>
-        <p>{{ kind }}</p>
-        {% if reservations.len() > 0 %}
-          <h2>Current Reservations</h2>
-          <ul id='reservations'>
-          {% for r in reservations %}
-            <li><p>{{ r.username }} reserved this court from {{ r.start }} to {{ r.end }}.</p></li>
-          {% endfor %}
-          </ul>
-        {% else %}
-          <h2>No Reservations</h2>
-        {% endif %}
-        <h3>Reserve This Court</h3>
-        <form id='reserve-form' action='/reserve-occupancy/{{ id }}' method='post'>
-          <input name='start-time' type='date'>
-          <input name='end-time' type='date'>
-          <input name='username' type='text' placeholder='Username'>
-          <input name='password' type='password' placeholder='Password'>
-          <button type='submit'>Submit</button>
-        </form>
-    </body>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="404 error page">
+    <meta name="author" content="Noah Graff and George Hosea">
+    <title>CS3200 Project | Court {{ name }}</title>
+    <link rel="stylesheet" href="/main.css">
+  </head>
+  <body>
+    <h1>{{ name }}</h1>
+    <h2>This court is {% if occupied -%}un{%- endif %}available</h2>
+    <h2>Court Type</h2>
+    <p>{{ kind }}</p>
+    {% if reservations.len() > 0 %}
+      <h2>Current Reservations</h2>
+      <ul id='reservations'>
+      {% for r in reservations %}
+        <li>
+          <p>{{ r.username }} reserved this court from {{ r.start }} to {{ r.end }}.</p>
+          {% match r.party %}
+            {% when Some with (p) %}
+              <small>Party looking for members! {{ p.current }}/{{ p.capacity }}</small>
+              <form action="/join-party/{{ p.id }}" method='post'>
+                <input type='submit' name='join' value='Join Party'/>
+              </form>
+            {% when None %}
+          {% endmatch %}
+          <small>
+        </li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <h2>No Reservations</h2>
+    {% endif %}
+    <h3>Reserve This Court</h3>
+    <form id='reserve-form' action='/reserve-occupancy/{{ id }}' method='post'>
+      <input name='start-time' type='date'>
+      <input name='end-time' type='date'>
+      <input name='username' type='text' placeholder='Username'>
+      <input name='password' type='password' placeholder='Password'>
+      <button type='submit'>Submit</button>
+    </form>
+  </body>
 </html>
