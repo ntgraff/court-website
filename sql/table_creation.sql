@@ -8,20 +8,33 @@ CREATE TABLE IF NOT EXISTS courts (
 
 -- Table to hold users information
 CREATE TABLE IF NOT EXISTS users (
-    username VARCHAR(45) NOT NULL UNIQUE,
-    password VARCHAR(30) NOT NULL,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
     PRIMARY KEY (username)
 );
 
 -- Table to hold intended use of a court by an independent party
-CREATE TABLE IF NOT EXISTS intended_use (
-    intended_use_id INT          NOT NULL AUTO_INCREMENT,
-    username        VARCHAR(255) NOT NULL,
-    start_time      DATETIME     NOT NULL,
-    end_time        DATETIME     NOT NULL,
-    court_id        INT          NOT NULL,
-    PRIMARY KEY (intended_use_id),
+CREATE TABLE IF NOT EXISTS reservations (
+    reservation_id INT          NOT NULL AUTO_INCREMENT,
+    username       VARCHAR(255) NOT NULL,
+    start_time     DATETIME     NOT NULL DEFAULT NOW(),
+    end_time       DATETIME     NOT NULL,
+    court_id       INT          NOT NULL,
+    party_id       INT,
+    PRIMARY KEY (reservation_id),
     FOREIGN KEY (username) REFERENCES users(username),
-    FOREIGN KEY (court_id) REFERENCES courts(court_id)
+    FOREIGN KEY (court_id) REFERENCES courts(court_id),
+    FOREIGN KEY (party_id) REFERENCES parties(party_id),
+    CONSTRAINT valid_start_end CHECK(start_time <= end_time)
 );
 
+-- Table to hold parties
+CREATE TABLE IF NOT EXISTS parties {
+    party_id INT NOT NULL AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
+    capacity INT NOT NULL,
+    current INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (party_id),
+    FOREIGN KEY (username) REFERENCES users(username),
+    CONSTRAINT valid_current CHECK(current <= capacity)
+}
