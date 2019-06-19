@@ -14,10 +14,16 @@
     <div id="content">
       {% block content %}
         <h1>CS3200 Project</h1>
-          <ul class='links'
-            <li><a href="/courts">View courts</a></li>
+        <ul class='links'
+          <li><a href="/courts">View courts</a></li>
+          {% if !signed_in %}
             <li><a href='/login'>Login</a></li>
-          </ul>
+          {% else %}
+            <form action="/logout" method='post'>
+              <input type='submit' name='join' value='logout'/>
+            </form>
+          {% endif %}
+        </ul>
       {% endblock %}
     </div>
   </body>

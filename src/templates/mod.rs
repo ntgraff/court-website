@@ -2,7 +2,9 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "index.html")]
-pub struct Index;
+pub struct Index {
+    pub signed_in: bool,
+}
 
 #[derive(Debug)]
 pub struct PartyInfo {
@@ -27,14 +29,14 @@ pub struct CourtInfo {
     pub name: String,
     pub occupied: bool,
     pub reservations: Vec<ReservationInfo>,
-    pub kind: String,
+    pub kinds: Vec<(String,String)>,
+    pub signed_in: bool,
 }
 
 pub struct CourtOverview {
     pub id: u32,
     pub name: String,
     pub occupied: bool,
-    pub kind: String,
 }
 
 #[derive(Template)]

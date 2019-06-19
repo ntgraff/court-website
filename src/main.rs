@@ -1,11 +1,11 @@
 use actix_files::NamedFile;
+use actix_identity::{CookieIdentityPolicy, Identity, IdentityService};
 use actix_web::get;
 use actix_web::{
-    guard, http::StatusCode, middleware, middleware::identity::Identity, web, App, HttpRequest,
-    HttpResponse, HttpServer, Result,
+    guard, http::StatusCode, middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use askama::Template;
-use log::{debug, info, trace};
+use log::{debug, error, info, trace};
 use mysql::params;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -53,17 +53,19 @@ fn main() -> std::io::Result<()> {
         App::new()
             .data(pool)
             .wrap(middleware::Logger::default())
+            .wrap(IdentityService::new(
+                CookieIdentityPolicy::new(&[0; 32])
+                    .secure(false) // https set up, not a real app, don't @ me.
+                    .name("courts-auth"),
+            ))
             .service(web::resource("/").route(web::get().to(home)))
             .service(
                 web::resource("/login")
                     .route(web::get().to(plogin))
                     .route(web::post().to(login_post)),
             )
-            .service(
-                web::resource("/register")
-                    .route(web::get().to(p404))
-                    .route(web::post().to(register_post)),
-            )
+            .service(web::resource("/register").route(web::post().to(register_post)))
+            .service(web::resource("/logout").route(web::post().to(logout)))
             .service(web::resource("/courts").route(web::get().to(courts_index)))
             .service(web::resource("/court/{id}").route(web::get().to(court_info)))
             .service(web::resource("/reserve/{id}").route(web::post().to(reserve_court)))
@@ -72,9 +74,10 @@ fn main() -> std::io::Result<()> {
                 web::resource("")
                     .route(web::get().to(p404))
                     .route(web::post().to(|data: String| info!("{:?}", data)))
-                    .route( web::route()
-                        .guard(guard::Not(guard::Get()))
-                        .to(HttpResponse::MethodNotAllowed),
+                    .route(
+                        web::route()
+                            .guard(guard::Not(guard::Get()))
+                            .to(HttpResponse::MethodNotAllowed),
                     ),
             )
     })
@@ -85,11 +88,15 @@ fn main() -> std::io::Result<()> {
     sys.run()
 }
 
-fn court_info(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<HttpResponse> {
+fn court_info(
+    pool: web::Data<mysql::Pool>,
+    uid: Identity,
+    path: web::Path<(u32,)>,
+) -> Result<HttpResponse> {
     info!("getting info for court {}", path.0);
     match pool
         .prep_exec(
-            "SELECT court_id, name, is_occupied(court_id), court_type FROM courts WHERE court_id = :court_id",
+            "SELECT court_id, name, is_occupied(court_id) FROM courts WHERE court_id = :court_id",
             params! {
                 "court_id" => path.0
             },
@@ -98,33 +105,54 @@ fn court_info(pool: web::Data<mysql::Pool>, path: web::Path<(u32,)>) -> Result<H
             result
                 .map(|x| x.unwrap())
                 .map(|row| {
-                    let (id, name, occupied, kind) = mysql::from_row::<(u32, String, bool, String)>(row);
+                    let (id, name, occupied) = mysql::from_row::<(u32, String, bool)>(row);
                     let reservations = pool
                         .prep_exec("CALL court_reservations(:cid)", params!("cid" => id))
                         .unwrap()
                         .map(Result::unwrap)
                         .map(|row| {
-                            let (id, username, start, end, _, _) =  mysql::from_row::<(u32, String, String, String, u32, Option<u32>)>(row);
+                            let (id, username, start, end, _, _) =
+                                mysql::from_row::<(u32, String, String, String, u32, Option<u32>)>(
+                                    row,
+                                );
                             let party = pool
-                                .first_exec("CALL reservation_available_party(:rid)", params!("rid" => id))
+                                .first_exec(
+                                    "CALL reservation_available_party(:rid)",
+                                    params!("rid" => id),
+                                )
                                 .unwrap()
                                 .map(|row| {
-                                    let (id, capacity, current) = mysql::from_row::<(u32, u32, u32)>(row);
+                                    let (id, capacity, current) =
+                                        mysql::from_row::<(u32, u32, u32)>(row);
                                     PartyInfo {
                                         id,
                                         capacity,
                                         current,
                                     }
                                 });
-                            ReservationInfo { id, username, start, end, party }
+                            ReservationInfo {
+                                id,
+                                username,
+                                start,
+                                end,
+                                party,
+                            }
                         })
+                        .collect::<Vec<_>>();
+
+                    let kinds = pool
+                        .prep_exec("CALL court_types(:cid)", params!("cid" => id))
+                        .unwrap()
+                        .map(Result::unwrap)
+                        .map(mysql::from_row::<(String, String)>)
                         .collect::<Vec<_>>();
                     CourtInfo {
                         id,
                         name,
                         occupied,
                         reservations,
-                        kind,
+                        kinds,
+                        signed_in: uid.identity().is_some(),
                     }
                 })
                 .collect::<Vec<_>>()
@@ -159,20 +187,14 @@ fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
     let courts = {
         let courts = pool
             .prep_exec(
-                "SELECT court_id, name, is_occupied(court_id), court_type FROM courts",
+                "SELECT court_id, name, is_occupied(court_id) FROM courts",
                 (),
             )
             .unwrap()
-            .map(|x| x.unwrap())
+            .map(Result::unwrap)
             .map(|row| {
-                let (id, name, occupied, kind) =
-                    mysql::from_row::<(u32, String, bool, String)>(row);
-                CourtOverview {
-                    id,
-                    name,
-                    occupied,
-                    kind,
-                }
+                let (id, name, occupied) = mysql::from_row::<(u32, String, bool)>(row);
+                CourtOverview { id, name, occupied }
             })
             .collect::<Vec<_>>();
         AllCourts { courts }
@@ -182,10 +204,14 @@ fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
         .body(courts.render().unwrap())
 }
 
-fn home() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .body(Index.render().unwrap())
+fn home(id: Identity) -> HttpResponse {
+    HttpResponse::Ok().content_type("text/html").body(
+        Index {
+            signed_in: id.identity().is_some(),
+        }
+        .render()
+        .unwrap(),
+    )
 }
 
 fn p404() -> Result<NamedFile> {
@@ -202,65 +228,77 @@ struct ReserveForm {
     start_time: String,
     end_date: String,
     end_time: String,
-    username: String,
-    password: String,
 }
 
 fn reserve_court(
     pool: web::Data<mysql::Pool>,
+    id: Identity,
     content: web::Form<ReserveForm>,
     path: web::Path<(u32,)>,
 ) -> HttpResponse {
     let court_id = path.0;
     trace!("reserving court with id {}", court_id);
-    let start = format!("{} {}", content.start_date.clone(), content.start_time.clone());
+    let start = format!(
+        "{} {}",
+        content.start_date.clone(),
+        content.start_time.clone()
+    );
     let end = format!("{} {}", content.end_date.clone(), content.end_time.clone());
     let dt_format = r"%Y-%m-%d %H:%i";
-    let username = content.username.clone();
-    let password = content.password.clone();
-    if try_login(&pool, username.clone(), password.clone()) {
-        let can_reserve = {
-            let row = pool
-                .first_exec(
-                    "SELECT can_reserve_between(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format))",
-                    params! {
-                        "court_id" => &court_id,
-                        "start" => &start,
-                        "end" => &end,
-                        "format" => dt_format,
-                    },
-                )
-                .unwrap()
-                .unwrap();
-            mysql::from_row::<(bool,)>(row).0
-        };
-        if can_reserve {
-            let _ = pool.prep_exec(
-                "CALL add_reservation(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format), :username)",
+    match id.identity() {
+        Some(username) => {
+            let can_reserve = {
+                let row = pool
+            .first_exec(
+                "SELECT can_reserve_between(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format))",
                 params! {
                     "court_id" => &court_id,
                     "start" => &start,
                     "end" => &end,
-                    "username" => &username,
                     "format" => dt_format,
                 },
-            );
-            HttpResponse::Ok().body("reserved!")
-        } else {
-            HttpResponse::BadRequest().body("already reserved for that period!")
+            )
+            .unwrap()
+            .unwrap();
+                mysql::from_row::<(bool,)>(row).0
+            };
+            if can_reserve {
+                match pool.prep_exec(
+                    "CALL add_reservation(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format), :username)",
+                    params! {
+                        "court_id" => &court_id,
+                        "start" => &start,
+                        "end" => &end,
+                        "username" => &username,
+                        "format" => dt_format,
+                    },
+                ) {
+                    Ok(_) => HttpResponse::Found()
+                    .header(
+                        actix_web::http::header::LOCATION,
+                        format!("/court/{}", court_id),
+                    )
+                    .finish(),
+                    Err(e) => {
+                        error!("Error reserving court! {:?}", e);
+                        HttpResponse::BadRequest().body("could not reserve court!?")
+                    }
+                }
+            } else {
+                HttpResponse::BadRequest().body("already reserved for that period!")
+            }
         }
-    } else {
-        HttpResponse::BadRequest().body("login failed!")
+        _ => HttpResponse::BadRequest().body("Not logged in!"),
     }
 }
 
 // TODO
-//   * FIX ALL POSTS
-//   * add cookie login?
+//   * fix all POSTS
 //   * add create party
+//   * implement join party
 //   * __CSS__
+//   * change nav to navbar on top, line ntgg.io
 //   * some other stuff, need to look at app again
-//   * fix login and register page
 
 fn try_login(pool: &web::Data<mysql::Pool>, username: String, password: String) -> bool {
     let row = pool
@@ -285,28 +323,13 @@ fn login_post(
     id: Identity,
 ) -> HttpResponse {
     trace!("login request");
-    let stored_pass = pool
-        .prep_exec(
-            "SELECT password FROM users WHERE username = :username",
-            params! {"username" => &content.username},
-        )
-        .map(|result| {
-            result
-                .map(|x| x.unwrap())
-                .map(mysql::from_row::<(String,)>)
-                .take(1)
-                .collect::<Vec<_>>()
-                .clone()
-        });
-
-    match stored_pass {
-        Ok(ref pass) if !pass.is_empty() && pass[0].0 == content.password => {
-            id.remember(content.username.clone());
-            HttpResponse::Found()
-                .header(actix_web::http::header::LOCATION, "/")
-                .finish()
-        }
-        _ => HttpResponse::UnprocessableEntity().body("not a valid login"),
+    if try_login(&pool, content.username.clone(), content.password.clone()) {
+        id.remember(content.username.clone());
+        HttpResponse::Found()
+            .header(actix_web::http::header::LOCATION, "/")
+            .finish()
+    } else {
+        HttpResponse::UnprocessableEntity().body("not a valid login")
     }
 }
 
@@ -317,40 +340,39 @@ struct Register {
     password2: String,
 }
 
-fn register_post(pool: web::Data<mysql::Pool>, content: web::Form<Register>) -> HttpResponse {
+fn register_post(
+    id: Identity,
+    pool: web::Data<mysql::Pool>,
+    content: web::Form<Register>,
+) -> HttpResponse {
     trace!("register request");
-    if content.password1 == content.password2 {
-        let mut transaction = pool.start_transaction(false, None, None).unwrap();
-        let already_exists = transaction
-            .prep_exec(
-                "SELECT COUNT(*) FROM users WHERE username = :username",
-                params! {"username" => &content.username},
-            )
-            .unwrap()
-            .map(|x| x.unwrap())
-            .map(mysql::from_row::<(u32,)>)
-            .take(1)
-            .collect::<Vec<_>>()[0]
-            .0
-            > 0;
-
-        if already_exists {
-            HttpResponse::BadRequest().body("User already exists!")
-        } else {
-            let _ = transaction.prep_exec(
-                "INSERT INTO users (username, password) VALUES (:username, :password)",
-                params! {
-                    "username" => &content.username,
-                    "password" => &content.password1
-                },
-            );
-            let _ = transaction.commit();
-            HttpResponse::Found()
-                .header(actix_web::http::header::LOCATION, "/")
-                .finish()
-                .into_body()
-        }
+    let did_register = pool
+        .first_exec(
+            "CALL try_register_user(:username, :pw1, :pw2)",
+            params! {
+                "username" => &content.username,
+                "pw1" => &content.password1,
+                "pw2" => &content.password2,
+            },
+        )
+        .unwrap()
+        .map(mysql::from_row::<(bool,)>)
+        .unwrap()
+        .0;
+    if did_register {
+        id.remember(content.username.clone());
+        HttpResponse::Found()
+            .header(actix_web::http::header::LOCATION, "/")
+            .finish()
+            .into_body()
     } else {
-        HttpResponse::BadRequest().body("Passwords do not match")
+        HttpResponse::BadRequest().body("could not register!")
     }
+}
+
+fn logout(id: Identity) -> HttpResponse {
+    id.forget();
+    HttpResponse::Found()
+        .header(actix_web::http::header::LOCATION, "/")
+        .finish()
 }
