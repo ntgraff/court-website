@@ -4,7 +4,11 @@
   <h1>{{ name }}</h1>
   <h2>This court is {% if occupied -%}un{%- endif %}available</h2>
   <h2>Court Type</h2>
-  <p>{{ kind }}</p>
+  <p>
+    {% for kind in kinds %}
+      {{ kind.0 }}{% if !loop.last %}, {% endif %}
+    {% endfor %}
+  </p>
   {% if reservations.len() > 0 %}
     <h2>Current Reservations</h2>
     <ul id='reservations'>
@@ -14,28 +18,29 @@
         {% match r.party %}
           {% when Some with (p) %}
             <small>Party looking for members! {{ p.current }}/{{ p.capacity }}</small>
-            <form action="/join-party/{{ p.id }}" method='post'>
-              <input type='submit' name='join' value='Join Party'/>
-            </form>
+            {% if signed_in %}
+              <form action="/join-party/{{ p.id }}" method='post'>
+                <input type='submit' name='join' value='Join Party'/>
+              </form>
+            {% endif %}
           {% when None %}
         {% endmatch %}
-        <small>
       </li>
     {% endfor %}
     </ul>
   {% else %}
     <h2>No Reservations</h2>
   {% endif %}
-  <h3>Reserve This Court</h3>
-  <form id='reserve-form' action='/reserve/{{ id }}' method='post'>
-    <label for='start'>Start</label>
-    <input name='start_date' type='date'>
-    <input name='start_time' id='start' type='time'>
-    <label for='end'>End</label>
-    <input name='end_date' type='date'>
-    <input name='end_time' id='end' type='time'>
-    <input name='username' type='text' placeholder='Username'>
-    <input name='password' type='password' placeholder='Password'>
-    <button type='submit'>Submit</button>
-  </form>
+  {% if signed_in %}
+    <h3>Reserve This Court</h3>
+    <form id='reserve-form' action='/reserve/{{ id }}' method='post'>
+      <label for='start'>Start</label>
+      <input name='start_date' type='date'>
+      <input name='start_time' id='start' type='time'>
+      <label for='end'>End</label>
+      <input name='end_date' type='date'>
+      <input name='end_time' id='end' type='time'>
+      <button type='submit'>Submit</button>
+    </form>
+  {% endif %}
 {% endblock %}

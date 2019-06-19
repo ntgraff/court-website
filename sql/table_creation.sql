@@ -1,9 +1,25 @@
+USE neucourts;
+
 -- Table to hold court information
 CREATE TABLE IF NOT EXISTS courts (
-    court_id           INT         NOT NULL AUTO_INCREMENT,
-    name               VARCHAR(30) NOT NULL,
-    court_type         VARCHAR(100) NOT NULL,
+    court_id    INT         NOT NULL AUTO_INCREMENT,
+    name        VARCHAR(30) NOT NULL,
+    description VARCHAR(255) NULL,
     PRIMARY KEY (court_id)
+);
+
+CREATE TABLE IF NOT EXISTS court_types (
+    type_name VARCHAR(100) NOT NULL,
+    type_desc VARCHAR(255) NULL     DEFAULT(type_name),
+    PRIMARY KEY (type_name)
+);
+
+CREATE TABLE IF NOT EXISTS type_registrar (
+    court_id  INT          NOT NULL,
+    type_name VARCHAR(100) NOT NULL,
+    PRIMARY KEY (court_id, type_name),
+    FOREIGN KEY (court_id) REFERENCES courts(court_id),
+    FOREIGN KEY (type_name) REFERENCES court_types(type_name)
 );
 
 -- Table to hold users information

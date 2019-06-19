@@ -74,7 +74,7 @@ END ;;
 DELIMITER ;
 
 -- A function that checks if a login was successful (username, password) -> TINYINT(1 IS TRUE, 0 IS FALSE)
-drop function if exists successful_login;
+DROP FUNCTION IF EXISTS successful_login;
 
 DELIMITER ;;
 
@@ -89,7 +89,7 @@ END ;;
 DELIMITER ;
 
 -- A function that checks if a user can register (username) -> TINYINT(1 IS TRUE, 0 IS FALSE)
-drop function if exists available_username;
+DROP FUNCTION IF EXISTS available_username;
 
 DELIMITER ;;
 CREATE FUNCTION available_username(un varchar(255)) RETURNS BOOLEAN
@@ -112,6 +112,33 @@ BEGIN
 END ;;
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS try_register_user;
+
+DELIMITER ;;
+CREATE PROCEDURE try_register_user( un VARCHAR(255), pw1 VARCHAR(255), pw2 VARCHAR(255) )
+BEGIN
+	DECLARE un_available BOOLEAN;
+	SELECT available_username(un) INTO un_available;
+	IF un_available AND pw1 = pw2 THEN
+		CALL add_user(un, pw1);
+		SELECT TRUE;
+	ELSE
+		SELECT FALSE;
+	END IF;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS court_types;
+
+DELIMITER ;;
+CREATE PROCEDURE court_types(cid INT)
+BEGIN
+	SELECT t.type_name, t.type_desc
+	FROM type_registrar r
+	JOIN court_types t ON r.type_name = t.type_name
+	WHERE r.court_id = cid;
+END ;;
+DELIMITER ;
 
 -- Add cascade stuff to the tables
 -- Maybe add more constraints to the tables? not sure.
