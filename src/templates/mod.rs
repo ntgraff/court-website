@@ -36,6 +36,7 @@ pub struct CourtInfo {
 pub struct CourtOverview {
     pub id: u32,
     pub name: String,
+    pub kinds: Vec<(String, String)>,
     pub occupied: bool,
 }
 

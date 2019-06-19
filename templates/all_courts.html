@@ -7,6 +7,11 @@
   <li>
     <h2>{{ court.name }}</h2>
     <ul>
+      <p>
+        {% for kind in court.kinds %}
+          {{ kind.0 }}{% if !loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
       <li><small>{% if court.occupied -%}un{%- endif %}available</small></li>
       <li><a href="/court/{{ court.id }}">view details</a></li>
     </ul>

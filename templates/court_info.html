@@ -17,10 +17,12 @@
         <p>{{ r.username }} reserved this court from {{ r.start }} to {{ r.end }}.</p>
         {% match r.party %}
           {% when Some with (p) %}
-            <small>Party looking for members! {{ p.current }}/{{ p.capacity }}</small>
+            <small>Looking for people to play! {{ p.current }}/{{ p.capacity }}</small>
             {% if signed_in %}
-              <form action="/join-party/{{ p.id }}" method='post'>
-                <input type='submit' name='join' value='Join Party'/>
+              <form action="/join-party" method='post'>
+                <input type='hidden' name='party_id' value='{{ p.id }}'>
+                <input type='hidden' name='from_court' value='{{ id }}'>
+                <button type='submit'>Join Party</button>
               </form>
             {% endif %}
           {% when None %}
@@ -34,12 +36,13 @@
   {% if signed_in %}
     <h3>Reserve This Court</h3>
     <form id='reserve-form' action='/reserve/{{ id }}' method='post'>
+      <input name='date' type='date' requried>
       <label for='start'>Start</label>
-      <input name='start_date' type='date'>
-      <input name='start_time' id='start' type='time'>
+      <input name='start_time' id='start' type='time' requried>
       <label for='end'>End</label>
-      <input name='end_date' type='date'>
-      <input name='end_time' id='end' type='time'>
+      <input name='end_time' id='end' type='time' requried>
+      <label for='party-capacity'>Party Capacity (optional)</label>
+      <input name='party_capacity' id='party_capacity' type='number' min='1' step='1'>
       <button type='submit'>Submit</button>
     </form>
   {% endif %}

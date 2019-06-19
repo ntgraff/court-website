@@ -31,11 +31,18 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Table to hold parties
 CREATE TABLE IF NOT EXISTS parties (
-    party_id INT          NOT NULL  AUTO_INCREMENT,
+    party_id INT          NOT NULL  AUTO_INCREMENT UNIQUE,
     capacity INT          NOT NULL,
-    current  INT          NOT NULL  DEFAULT 0,
     PRIMARY KEY (party_id),
-    CONSTRAINT valid_current CHECK(current <= capacity)
+    CONSTRAINT valid_capacity CHECK(capacity > 0)
+);
+
+CREATE TABLE IF NOT EXISTS party_registrar (
+    party_id INT          NOT NULL,
+    user     VARCHAR(255) NOT NULL,
+    PRIMARY KEY (party_id, user),
+    FOREIGN KEY (party_id) REFERENCES parties(party_id),
+    FOREIGN KEY (user)     REFERENCES users(username)
 );
 
 -- Table to hold intended use of a court by an independent party

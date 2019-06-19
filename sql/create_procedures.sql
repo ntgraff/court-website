@@ -2,9 +2,23 @@
 DROP PROCEDURE IF EXISTS add_reservation;
 
 DELIMITER ;;
-CREATE PROCEDURE add_reservation( cid INT, start DATETIME, end DATETIME, username VARCHAR(45) )
+CREATE PROCEDURE add_reservation( cid INT, start DATETIME, end DATETIME, username VARCHAR(255) )
 BEGIN
 	INSERT INTO reservations (username, start_time, end_time, court_id) VALUES (username, start, end, cid);
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS add_reservation_with_party;
+
+DELIMITER ;;
+CREATE PROCEDURE add_reservation_with_party( cid INT, start DATETIME, end DATETIME, username VARCHAR(255), pca INT )
+BEGIN
+	DECLARE pid INT;
+	INSERT INTO parties (capacity) VALUES (pca);
+	SELECT LAST_INSERT_ID() INTO pid;
+	INSERT INTO party_registrar (party_id, user) VALUES (pid, username);
+	INSERT INTO reservations (username, start_time, end_time, court_id, party_id)
+	VALUES (username, start, end, cid, pid);
 END ;;
 DELIMITER ;
 
@@ -51,12 +65,62 @@ BEGIN
 		court_id,
 		party_id
 	FROM reservations
-	WHERE court_id = cid AND end_time > NOW()
-	ORDER BY start_time DESC;
+	WHERE court_id = cid AND end_time >= NOW()
+	ORDER BY start_time ASC;
 END ;;
 DELIMITER ;
 
-DROP PROCEDURE IF EXISTS  reservation_available_party;
+DROP FUNCTION IF EXISTS party_current_count;
+
+DELIMITER ;;
+CREATE FUNCTION party_current_count( pid INT ) RETURNS INT
+BEGIN
+	DECLARE curc INT;
+	SELECT COUNT(party_id) INTO curc FROM party_registrar WHERE party_id = pid;
+	RETURN curc;
+END ;;
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS party_details;
+
+DELIMITER ;;
+CREATE PROCEDURE party_details( pid INT )
+BEGIN
+	SELECT party_id, capacity, party_current_count(party_id) AS current FROM parties WHERE party_id = pid;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS can_join_party;
+
+DELIMITER ;;
+CREATE FUNCTION can_join_party( un VARCHAR(255), pid INT ) RETURNS BOOLEAN
+BEGIN
+	DECLARE curc INT;
+	DECLARE cap  INT;
+	SELECT party_current_count(pid) INTO curc;
+	SELECT capacity INTO cap FROM parties WHERE party_id = pid;
+	RETURN (un NOT IN (SELECT user FROM party_registrar WHERE party_id = pid)) AND (curc < cap);
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS try_join_party;
+
+DELIMITER ;;
+CREATE PROCEDURE try_join_party( un VARCHAR(255), pid INT )
+BEGIN
+	DECLARE can_join BOOLEAN;
+	SELECT can_join_party(un, pid) INTO can_join;
+	IF can_join THEN
+		INSERT INTO party_registrar (party_id, user) VALUES (pid, un);
+		SELECT TRUE;
+	ELSE
+		SELECT FALSE;
+	END IF;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS reservation_available_party;
 
 DELIMITER ;;
 CREATE PROCEDURE reservation_available_party( rid INT )
@@ -67,9 +131,7 @@ BEGIN
 	FROM reservations
 	WHERE reservation_id = rid;
 
-	SELECT party_id, capacity, current
-	FROM parties
-	WHERE party_id = pid;
+	CALL party_details(pid);
 END ;;
 DELIMITER ;
 

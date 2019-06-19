@@ -10,7 +10,9 @@ use mysql::params;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
+mod courts;
 mod templates;
+use courts::{court_info, courts_index};
 use templates::*;
 
 const DATABASE_NAME: &str = "neucourts";
@@ -69,11 +71,14 @@ fn main() -> std::io::Result<()> {
             .service(web::resource("/courts").route(web::get().to(courts_index)))
             .service(web::resource("/court/{id}").route(web::get().to(court_info)))
             .service(web::resource("/reserve/{id}").route(web::post().to(reserve_court)))
+            .service(web::resource("/join-party").route(web::post().to(join_party)))
             .service(actix_files::Files::new("/static", "./static"))
             .default_service(
                 web::resource("")
                     .route(web::get().to(p404))
-                    .route(web::post().to(|data: String| info!("{:?}", data)))
+                    .route(
+                        web::post().to(|data: String| error!("unknown post attempted: {:?}", data)),
+                    )
                     .route(
                         web::route()
                             .guard(guard::Not(guard::Get()))
@@ -86,122 +91,6 @@ fn main() -> std::io::Result<()> {
 
     println!("Starting on 127.0.0.1:8000");
     sys.run()
-}
-
-fn court_info(
-    pool: web::Data<mysql::Pool>,
-    uid: Identity,
-    path: web::Path<(u32,)>,
-) -> Result<HttpResponse> {
-    info!("getting info for court {}", path.0);
-    match pool
-        .prep_exec(
-            "SELECT court_id, name, is_occupied(court_id) FROM courts WHERE court_id = :court_id",
-            params! {
-                "court_id" => path.0
-            },
-        )
-        .map(|result| {
-            result
-                .map(|x| x.unwrap())
-                .map(|row| {
-                    let (id, name, occupied) = mysql::from_row::<(u32, String, bool)>(row);
-                    let reservations = pool
-                        .prep_exec("CALL court_reservations(:cid)", params!("cid" => id))
-                        .unwrap()
-                        .map(Result::unwrap)
-                        .map(|row| {
-                            let (id, username, start, end, _, _) =
-                                mysql::from_row::<(u32, String, String, String, u32, Option<u32>)>(
-                                    row,
-                                );
-                            let party = pool
-                                .first_exec(
-                                    "CALL reservation_available_party(:rid)",
-                                    params!("rid" => id),
-                                )
-                                .unwrap()
-                                .map(|row| {
-                                    let (id, capacity, current) =
-                                        mysql::from_row::<(u32, u32, u32)>(row);
-                                    PartyInfo {
-                                        id,
-                                        capacity,
-                                        current,
-                                    }
-                                });
-                            ReservationInfo {
-                                id,
-                                username,
-                                start,
-                                end,
-                                party,
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    let kinds = pool
-                        .prep_exec("CALL court_types(:cid)", params!("cid" => id))
-                        .unwrap()
-                        .map(Result::unwrap)
-                        .map(mysql::from_row::<(String, String)>)
-                        .collect::<Vec<_>>();
-                    CourtInfo {
-                        id,
-                        name,
-                        occupied,
-                        reservations,
-                        kinds,
-                        signed_in: uid.identity().is_some(),
-                    }
-                })
-                .collect::<Vec<_>>()
-        }) {
-        Ok(res) => {
-            if res.is_empty() {
-                Ok(HttpResponse::Ok()
-                    .content_type("text/html")
-                    .status(StatusCode::NOT_FOUND)
-                    .body(include_str!(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/static/404.html"
-                    ))))
-            } else {
-                let content = &res[0];
-                Ok(HttpResponse::Ok()
-                    .content_type("text/html")
-                    .body(content.render().unwrap()))
-            }
-        }
-        Err(_) => Ok(HttpResponse::Ok()
-            .content_type("text/html")
-            .status(StatusCode::NOT_FOUND)
-            .body(include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/static/404.html"
-            )))),
-    }
-}
-
-fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
-    let courts = {
-        let courts = pool
-            .prep_exec(
-                "SELECT court_id, name, is_occupied(court_id) FROM courts",
-                (),
-            )
-            .unwrap()
-            .map(Result::unwrap)
-            .map(|row| {
-                let (id, name, occupied) = mysql::from_row::<(u32, String, bool)>(row);
-                CourtOverview { id, name, occupied }
-            })
-            .collect::<Vec<_>>();
-        AllCourts { courts }
-    };
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .body(courts.render().unwrap())
 }
 
 fn home(id: Identity) -> HttpResponse {
@@ -223,11 +112,43 @@ fn plogin() -> Result<NamedFile> {
 }
 
 #[derive(Serialize, Deserialize)]
+struct JoinPartyForm {
+    party_id: String,
+    from_court: String,
+}
+
+fn join_party(
+    pool: web::Data<mysql::Pool>,
+    id: Identity,
+    content: web::Form<JoinPartyForm>,
+) -> HttpResponse {
+    match id.identity() {
+        Some(username) => match pool
+            .first_exec(
+                "CALL try_join_party(:uid, :pid)",
+                params!("uid" => username, "pid" => content.party_id.parse::<u32>().unwrap()),
+            )
+            .map(|res| res.map(mysql::from_row::<(bool,)>))
+        {
+            Ok(Some((true,))) => HttpResponse::Found()
+                .header("location", format!("/court/{}", content.from_court))
+                .finish(),
+            Err(e) => {
+                error!("{:?}", e);
+                HttpResponse::BadRequest().body("Not able to join party!")
+            }
+            _ => HttpResponse::BadRequest().body("Not able to join party!"),
+        },
+        None => HttpResponse::BadRequest().body("Not logged in!"),
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 struct ReserveForm {
-    start_date: String,
+    date: String,
     start_time: String,
-    end_date: String,
     end_time: String,
+    party_capacity: String,
 }
 
 fn reserve_court(
@@ -236,15 +157,20 @@ fn reserve_court(
     content: web::Form<ReserveForm>,
     path: web::Path<(u32,)>,
 ) -> HttpResponse {
+    use std::u32;
     let court_id = path.0;
-    trace!("reserving court with id {}", court_id);
-    let start = format!(
-        "{} {}",
-        content.start_date.clone(),
-        content.start_time.clone()
-    );
-    let end = format!("{} {}", content.end_date.clone(), content.end_time.clone());
+    let start = format!("{} {}", content.date.clone(), content.start_time.clone());
+    let end = format!("{} {}", content.date.clone(), content.end_time.clone());
     let dt_format = r"%Y-%m-%d %H:%i";
+    let party_capacity = content.party_capacity.parse::<u32>().ok();
+    info!(
+        "{:?} is trying to reserve {} from {} to {} with a party of {:?}",
+        id.identity(),
+        court_id,
+        start,
+        end,
+        party_capacity
+    );
     match id.identity() {
         Some(username) => {
             let can_reserve = {
@@ -263,26 +189,54 @@ fn reserve_court(
                 mysql::from_row::<(bool,)>(row).0
             };
             if can_reserve {
-                match pool.prep_exec(
-                    "CALL add_reservation(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format), :username)",
-                    params! {
-                        "court_id" => &court_id,
-                        "start" => &start,
-                        "end" => &end,
-                        "username" => &username,
-                        "format" => dt_format,
-                    },
-                ) {
-                    Ok(_) => HttpResponse::Found()
-                    .header(
-                        actix_web::http::header::LOCATION,
-                        format!("/court/{}", court_id),
-                    )
-                    .finish(),
-                    Err(e) => {
-                        error!("Error reserving court! {:?}", e);
-                        HttpResponse::BadRequest().body("could not reserve court!?")
+                match party_capacity {
+                    Some(party_capacity) => {
+                        match pool.prep_exec(
+                            "CALL add_reservation_with_party(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format), :username, :pca)",
+                            params! {
+                                "court_id" => &court_id,
+                                "start" => &start,
+                                "end" => &end,
+                                "username" => &username,
+                                "format" => dt_format,
+                                "pca" => party_capacity,
+                            },
+                        ) {
+                            Ok(_) => HttpResponse::Found()
+                                .header(
+                                    actix_web::http::header::LOCATION,
+                                    format!("/court/{}", court_id),
+                                )
+                                .finish(),
+                            Err(e) => {
+                                error!("Error reserving court! {:?}", e);
+                                HttpResponse::BadRequest().body("could not reserve court!?")
+                            }
+                        }
                     }
+                    None => {
+                        match pool.prep_exec(
+                        "CALL add_reservation(:court_id, STR_TO_DATE(:start, :format), STR_TO_DATE(:end, :format), :username)",
+                        params! {
+                            "court_id" => &court_id,
+                            "start" => &start,
+                            "end" => &end,
+                            "username" => &username,
+                            "format" => dt_format,
+                        },
+                    ) {
+                        Ok(_) => HttpResponse::Found()
+                        .header(
+                            actix_web::http::header::LOCATION,
+                            format!("/court/{}", court_id),
+                        )
+                        .finish(),
+                        Err(e) => {
+                            error!("Error reserving court! {:?}", e);
+                            HttpResponse::BadRequest().body("could not reserve court!?")
+                        }
+                    }
+                }
                 }
             } else {
                 HttpResponse::BadRequest().body("already reserved for that period!")
@@ -364,7 +318,6 @@ fn register_post(
         HttpResponse::Found()
             .header(actix_web::http::header::LOCATION, "/")
             .finish()
-            .into_body()
     } else {
         HttpResponse::BadRequest().body("could not register!")
     }
