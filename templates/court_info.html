@@ -17,13 +17,15 @@
         <p>{{ r.username }} reserved this court from {{ r.start }} to {{ r.end }}.</p>
         {% match r.party %}
           {% when Some with (p) %}
-            <small>Looking for people to play! {{ p.current }}/{{ p.capacity }}</small>
-            {% if signed_in %}
-              <form action="/join-party" method='post'>
-                <input type='hidden' name='party_id' value='{{ p.id }}'>
-                <input type='hidden' name='from_court' value='{{ id }}'>
-                <button type='submit'>Join Party</button>
-              </form>
+            {% if p.current < p.capacity %}
+              <small>Looking for people to play! {{ p.current }}/{{ p.capacity }}</small>
+              {% if signed_in %}
+                <form action="/join-party" method='post'>
+                  <input type='hidden' name='party_id' value='{{ p.id }}'>
+                  <input type='hidden' name='from_court' value='{{ id }}'>
+                  <button type='submit'>Join Party</button>
+                </form>
+              {% endif %}
             {% endif %}
           {% when None %}
         {% endmatch %}
