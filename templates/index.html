@@ -11,18 +11,19 @@
       {% block style %}<link rel="stylesheet" href="/static/main.css">{% endblock %}
   </head>
   <body>
+    <nav>
+      <div class='nav-link'>
+      <a href='/'>Home</a>
+      <a href='/courts'>Courts</a>
+      {% if signed_in %}<a href='/reservations'>Reservations</a>{% endif %}
+      {% if !signed_in %}<a href='/login'>Login</a>{% else %}<form action="/logout" method='post'><input type='submit' name='join' value='Logout'/></form>{% endif %}
+      </div>
+    </nav>
     <div id="content">
       {% block content %}
         <h1>CS3200 Project</h1>
         <ul class='links'
           <li><a href="/courts">View courts</a></li>
-          {% if !signed_in %}
-            <li><a href='/login'>Login</a></li>
-          {% else %}
-            <form action="/logout" method='post'>
-              <input type='submit' name='join' value='logout'/>
-            </form>
-          {% endif %}
         </ul>
       {% endblock %}
     </div>

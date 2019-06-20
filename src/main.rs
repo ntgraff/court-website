@@ -11,9 +11,11 @@ use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 mod courts;
+mod reservation;
 mod templates;
 use courts::{court_info, courts_index};
 use templates::*;
+use reservation::*;
 
 const DATABASE_NAME: &str = "neucourts";
 
@@ -72,6 +74,8 @@ fn main() -> std::io::Result<()> {
             .service(web::resource("/court/{id}").route(web::get().to(court_info)))
             .service(web::resource("/reserve/{id}").route(web::post().to(reserve_court)))
             .service(web::resource("/join-party").route(web::post().to(join_party)))
+            .service(web::resource("/reservations").route(web::get().to(reservations)))
+            .service(web::resource("/remove-reservation").route(web::post().to(remove_reservation)))
             .service(actix_files::Files::new("/static", "./static"))
             .default_service(
                 web::resource("")

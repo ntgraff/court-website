@@ -67,7 +67,7 @@ pub fn court_info(
     }
 }
 
-pub fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
+pub fn courts_index(id: Identity, pool: web::Data<mysql::Pool>) -> HttpResponse {
     let courts = {
         let courts = pool
             .prep_exec("SELECT court_id FROM courts", ())
@@ -89,7 +89,10 @@ pub fn courts_index(pool: web::Data<mysql::Pool>) -> HttpResponse {
                 }
             })
             .collect::<Vec<_>>();
-        AllCourts { courts }
+        AllCourts {
+            courts,
+            signed_in: id.identity().is_some(),
+        }
     };
     HttpResponse::Ok()
         .content_type("text/html")

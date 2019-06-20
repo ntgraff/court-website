@@ -22,6 +22,19 @@ pub struct ReservationInfo {
     pub party: Option<PartyInfo>,
 }
 
+pub struct RegistrationOverview {
+    pub id: u32,
+    pub court_id: u32,
+    pub court_name: String,
+}
+
+#[derive(Template)]
+#[template(path = "reservations.html")]
+pub struct AllReservations {
+    pub signed_in: bool,
+    pub reservations: Vec<RegistrationOverview>,
+}
+
 #[derive(Template)]
 #[template(path = "court_info.html")]
 pub struct CourtInfo {
@@ -44,5 +57,6 @@ pub struct CourtOverview {
 #[template(path = "all_courts.html")]
 pub struct AllCourts {
     pub courts: Vec<CourtOverview>,
+    pub signed_in: bool,
 }
 

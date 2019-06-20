@@ -1,21 +1,23 @@
 {% extends "index.html" %}
 {% block title %}All Courts{% endblock %}
 {% block content %}
-<h1>All Courts</h1>
-<ul id="courts">
-{% for court in courts %}
-  <li>
-    <h2>{{ court.name }}</h2>
-    <ul>
-      <p>
-        {% for kind in court.kinds %}
-          {{ kind.0 }}{% if !loop.last %}, {% endif %}
-        {% endfor %}
-      </p>
-      <li><small>{% if court.occupied -%}un{%- endif %}available</small></li>
-      <li><a href="/court/{{ court.id }}">view details</a></li>
-    </ul>
-  </li>
-{% endfor %}
-</ul>
+  <h1>All Courts</h1>
+  <ul id="courts">
+  {% for court in courts %}
+    <li>
+      <h2>{{ court.name }}</h2>
+      <ul>
+        <li>
+          <p>
+            {% for kind in court.kinds %}
+              {{ kind.0 }}{% if !loop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+        </li>
+        <li><small>{% if court.occupied -%}un{%- endif %}available</small></li>
+        <li><a href="/court/{{ court.id }}">view details</a></li>
+      </ul>
+    </li>
+  {% endfor %}
+  </ul>
 {% endblock %}

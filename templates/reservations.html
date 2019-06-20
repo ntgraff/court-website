@@ -1,0 +1,16 @@
+{% extends "index.html" %}
+{% block title %}Your Reservations{% endblock %}
+{% block content %}
+  <h1>Reservations</h1>
+  <ul id="reservations">
+  {% for r in reservations %}
+    <li>
+      <h2><a href="/court/{{ r.court_id }}">{{ r.court_name }}</a></h2>
+      <form action="/remove-reservation" method='post'>
+        <input type='hidden' name='to_remove' value='{{ r.id }}'>
+        <input type='submit' value='Remove'/>
+      </form>
+    </li>
+  {% endfor %}
+  </ul>
+{% endblock %}

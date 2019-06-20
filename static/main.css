@@ -1,8 +1,53 @@
+nav {
+    position:fixed;
+    top:0;
+    margin-top:0px;
+    width:100%;
+    background-color:#6c7c8c;
+    font-size: 18px;
+    font-weight:bold
+}
+
+nav div.nav-link {
+    padding:8px 36px;
+    width: 80%;
+    margin:16px auto;
+}
+
+nav .nav-link form {
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+
+nav .nav-link form input {
+    display: inline;
+    background: none;
+    border: none;
+    color: black;
+    margin-right:24px;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: 'DejaVu Serif';
+    font-size: 18px;
+    font-weight: bold;
+}
+
+nav .nav-link a {
+    text-decoration:none;
+    margin-right:24px;
+    color: black;
+}
+
 body {
-    background-color: #5c6c7c;
+    background-color: #6c7c8c;
     padding: 0;
 }
 
+div#content {
+    padding-top: 54px;
+}
 #content small {
     margin: 4px 0;
     font-size: 14px;

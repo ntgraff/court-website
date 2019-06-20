@@ -18,20 +18,22 @@ CREATE TABLE IF NOT EXISTS type_registrar (
     court_id  INT          NOT NULL,
     type_name VARCHAR(100) NOT NULL,
     PRIMARY KEY (court_id, type_name),
-    FOREIGN KEY (court_id) REFERENCES courts(court_id),
+    FOREIGN KEY (court_id) REFERENCES courts(court_id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (type_name) REFERENCES court_types(type_name)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- Table to hold users information
 CREATE TABLE IF NOT EXISTS users (
-    username VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     PRIMARY KEY (username)
 );
 
 -- Table to hold parties
 CREATE TABLE IF NOT EXISTS parties (
-    party_id INT          NOT NULL  AUTO_INCREMENT UNIQUE,
+    party_id INT          NOT NULL  AUTO_INCREMENT,
     capacity INT          NOT NULL,
     PRIMARY KEY (party_id),
     CONSTRAINT valid_capacity CHECK(capacity > 0)
@@ -41,8 +43,10 @@ CREATE TABLE IF NOT EXISTS party_registrar (
     party_id INT          NOT NULL,
     user     VARCHAR(255) NOT NULL,
     PRIMARY KEY (party_id, user),
-    FOREIGN KEY (party_id) REFERENCES parties(party_id),
+    FOREIGN KEY (party_id) REFERENCES parties(party_id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (user)     REFERENCES users(username)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- Table to hold intended use of a court by an independent party
@@ -54,7 +58,8 @@ CREATE TABLE IF NOT EXISTS reservations (
     court_id       INT          NOT NULL,
     party_id       INT,
     PRIMARY KEY (reservation_id),
-    FOREIGN KEY (username) REFERENCES users(username),
+    FOREIGN KEY (username) REFERENCES users(username)
+        ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (court_id) REFERENCES courts(court_id),
     FOREIGN KEY (party_id) REFERENCES parties(party_id),
     CONSTRAINT valid_start_end CHECK(start_time <= end_time)
